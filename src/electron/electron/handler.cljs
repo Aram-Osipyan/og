@@ -20,6 +20,7 @@
             [electron.find-in-page :as find]
             [electron.fs-watcher :as watcher]
             [electron.git :as git]
+            [electron.webdav-sync :as webdav-sync]
             [electron.logger :as logger]
             [electron.plugin :as plugin]
             [electron.search :as search]
@@ -504,6 +505,15 @@
 (defmethod handle :setGitAutoCommit []
   (debounced-configure-auto-commit!)
   nil)
+
+(def debounced-configure-webdav-sync! (debounce webdav-sync/configure! 2000))
+
+(defmethod handle :setWebdavSync []
+  (debounced-configure-webdav-sync!)
+  nil)
+
+(defmethod handle :webdavSyncNow [^js win]
+  (webdav-sync/sync-graph! (state/get-window-graph-path win) :notify? true))
 
 (defmethod handle :installMarketPlugin [_ [_ mft]]
   (plugin/install-or-update! mft))

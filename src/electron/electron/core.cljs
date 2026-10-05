@@ -18,6 +18,7 @@
             ["electron-deeplink" :refer [Deeplink]]
             [electron.state :as state]
             [electron.git :as git]
+            [electron.webdav-sync :as webdav-sync]
             [electron.window :as win]
             [electron.exceptions :as exceptions]
             ["/electron/utils" :as js-utils]
@@ -293,6 +294,8 @@
 
                (git/configure-auto-commit!)
 
+               (webdav-sync/configure!)
+
                (vreset! *setup-fn
                         (fn []
                           (let [t1 (setup-updater! win)
@@ -311,6 +314,7 @@
                ;; main window events
                (.on win "close" (fn [e]
                                   (git/before-graph-close-hook!)
+                                  (webdav-sync/before-graph-close-hook!)
                                   (when @*quit-dirty? ;; when not updating
                                     (.preventDefault e)
 
