@@ -757,6 +757,52 @@
      (enable-all-pages-public-row t enable-all-pages-public?)
      (auto-push-row t current-repo enable-git-auto-push?)]))
 
+(defn- set-webdav-cfg!
+  [k v]
+  (p/do!
+   (state/set-state! [:electron/user-cfgs k] v)
+   (ipc/ipc :userAppCfgs k v)
+   (ipc/ipc :setWebdavSync)))
+
+(rum/defc webdav-text-input < rum/reactive
+  [label k & {:keys [type placeholder parse]
+              :or {type "text" parse identity}}]
+  (let [value (state/sub [:electron/user-cfgs k])]
+    [:div.it.sm:grid.sm:grid-cols-3.sm:gap-4.sm:items-center
+     [:label.block.text-sm.font-medium.leading-5.opacity-70 label]
+     [:div.mt-1.sm:mt-0.sm:col-span-2
+      [:div.max-w-lg.rounded-md
+       [:input.form-input.is-small.transition.duration-150.ease-in-out
+        {:type          type
+         :placeholder   placeholder
+         :default-value (str (or value ""))
+         :on-blur       (fn [event]
+                          (let [v (parse (string/trim (util/evalue event)))]
+                            (when (and (some? v) (not= v value))
+                              (set-webdav-cfg! k v))))}]]]]))
+
+(rum/defc settings-webdav-sync < rum/reactive
+  []
+  (let [enabled? (true? (state/sub [:electron/user-cfgs :webdav/enabled?]))]
+    [:div
+     [:h2.text-base.font-medium.mt-6.mb-2 (t :settings-page/webdav-title)]
+     [:p.text-sm.opacity-50.mb-4 (t :settings-page/webdav-desc)]
+     (toggle "webdav-enabled" (t :settings-page/webdav-enable) enabled?
+             #(set-webdav-cfg! :webdav/enabled? (not enabled?)))
+     (webdav-text-input (t :settings-page/webdav-url) :webdav/url
+                        :placeholder "https://dav.example.com/remote.php/dav/files/me/logseq")
+     (webdav-text-input (t :settings-page/webdav-username) :webdav/username)
+     (webdav-text-input (t :settings-page/webdav-password) :webdav/password :type "password")
+     (webdav-text-input (t :settings-page/webdav-interval) :webdav/sync-seconds
+                        :placeholder "300"
+                        :parse (fn [v] (let [n (util/safe-parse-int v)]
+                                         (when (and (number? n) (< 0 n (inc 86400))) n))))
+     (when enabled?
+       (row-with-button-action
+        {:left-label   (t :settings-page/webdav-sync-now)
+         :button-label (t :settings-page/webdav-sync-now)
+         :on-click     #(ipc/ipc :webdavSyncNow)}))]))
+
 (rum/defc settings-git
   []
   [:div.panel-wrap
@@ -776,7 +822,8 @@
    [:br]
    (switch-git-auto-commit-row t)
    (switch-git-commit-on-close-row t)
-   (git-auto-commit-seconds t)])
+   (git-auto-commit-seconds t)
+   (settings-webdav-sync)])
 
 (rum/defc settings-advanced < rum/reactive
   [current-repo]
